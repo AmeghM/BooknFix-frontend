@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+/* user card style */
+
+.card-radius {
+  border-radius: 8px 8px 0 0;
+}
