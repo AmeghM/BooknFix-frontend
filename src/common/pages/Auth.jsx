@@ -1,11 +1,100 @@
 import React, { useState } from "react";
 import "../../../src/index.css";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { FaRegEye, FaRegEyeSlash } from "react-icons/fa";
+import { loginAPI, registerAPI } from "../../services/allAPI";
 
 function Auth({ register }) {
   const [showPassword, setShowPassword] = useState(false);
+  const [userDetails, setUserDetails] = useState({
+    username: "",
+    email: "",
+    phone: "",
+    password: "",
+  });
 
+  const navigate = useNavigate();
+
+  const handleRegister = async () => {
+    const { username, email, phone, password } = userDetails;
+    if (!username || !email || !phone || !password) {
+      alert("Fill all the fields!!");
+    } else {
+      const result = await registerAPI(userDetails);
+      console.log(result);
+      if (result.status == 200) {
+        alert("Registered Successfully");
+        setUserDetails({
+          username: "",
+          email: "",
+          phone: "",
+          password: "",
+        });
+        navigate("/login");
+      } else if (result.status == 404) {
+        alert(result.response.data);
+        setUserDetails({
+          username: "",
+          email: "",
+          phone: "",
+          password: "",
+        });
+      } else {
+        alert("Somethin went wrong");
+        setUserDetails({
+          username: "",
+          email: "",
+          phone: "",
+          password: "",
+        });
+      }
+    }
+  };
+
+  const handleLogin = async () => {
+    const { email, password } = userDetails;
+
+    if (!email || !password) {
+      alert("Fill all the fields!!");
+    } else {
+      try {
+        const result = await loginAPI(userDetails);
+        console.log(result);
+        if (result.status == 200) {
+          alert("Login Successfull");
+          setUserDetails({
+            username: "",
+            email: "",
+            phone: "",
+            password: "",
+          });
+          navigate("/");
+        } else if (result.status == 404) {
+          alert(result.response.data);
+          setUserDetails({
+            username: "",
+            email: "",
+            phone: "",
+            password: "",
+          });
+        } else if (result.status == 401) {
+          alert(result.response.data);
+        } else {
+          alert("Something went wrong");
+          setUserDetails({
+            username: "",
+            email: "",
+            phone: "",
+            password: "",
+          });
+        }
+      } catch (error) {
+        console.log(error);
+      }
+    }
+  };
+
+  console.log(userDetails);
   return (
     <div
       className={`content w-full min-h-screen flex justify-center items-center bg-orange-100 ${
@@ -39,18 +128,27 @@ function Auth({ register }) {
               <input
                 type="text"
                 placeholder="Username"
+                onChange={(e) => {
+                  setUserDetails({ ...userDetails, username: e.target.value });
+                }}
                 className="w-full rounded-md border border-gray-300 bg-white px-4 py-3 text-lg"
               />
 
               <input
                 type="email"
                 placeholder="Email"
+                onChange={(e) => {
+                  setUserDetails({ ...userDetails, email: e.target.value });
+                }}
                 className="w-full rounded-md border border-gray-300 bg-white px-4 py-3 text-lg"
               />
 
               <input
                 type="text"
                 placeholder="Phone"
+                onChange={(e) => {
+                  setUserDetails({ ...userDetails, phone: e.target.value });
+                }}
                 className="w-full rounded-md border border-gray-300 bg-white px-4 py-3 text-lg"
               />
 
@@ -58,6 +156,12 @@ function Auth({ register }) {
                 <input
                   type={showPassword ? "text" : "password"}
                   placeholder="Password"
+                  onChange={(e) => {
+                    setUserDetails({
+                      ...userDetails,
+                      password: e.target.value,
+                    });
+                  }}
                   className="w-full rounded-md border border-gray-300 bg-white px-4 py-3 text-lg"
                 />
                 <button
@@ -73,7 +177,11 @@ function Auth({ register }) {
                 </button>
               </div>
 
-              <button className="w-full rounded-lg px-4 py-3 bg-orange-500 text-white text-xl shadow hover:bg-white hover:text-orange-500 hover:border hover:border-orange-400 transition-all">
+              <button
+                onClick={handleRegister}
+                type="button"
+                className="w-full rounded-lg px-4 py-3 bg-orange-500 text-white text-xl shadow hover:bg-white hover:text-orange-500 hover:border hover:border-orange-400 transition-all"
+              >
                 Register
               </button>
               <div>
@@ -99,6 +207,9 @@ function Auth({ register }) {
               <input
                 type="email"
                 placeholder="Email"
+                onChange={(e) => {
+                  setUserDetails({ ...userDetails, email: e.target.value });
+                }}
                 className="w-full rounded-md border border-gray-300 bg-white px-4 py-3 text-lg"
                 required
               />
@@ -107,6 +218,12 @@ function Auth({ register }) {
                 <input
                   type={showPassword ? "text" : "password"}
                   placeholder="Password"
+                  onChange={(e) => {
+                    setUserDetails({
+                      ...userDetails,
+                      password: e.target.value,
+                    });
+                  }}
                   className="w-full rounded-md border border-gray-300 bg-white px-4 py-3 text-lg"
                   required
                 />
@@ -123,11 +240,14 @@ function Auth({ register }) {
                 </button>
               </div>
 
-              <Link to={"/services"}>
-                <button className="w-full rounded-lg px-4 py-3 bg-orange-500 text-white text-xl shadow hover:bg-white hover:text-orange-500 hover:border hover:border-orange-400 transition-all">
-                  Login
-                </button>
-              </Link>
+              <button
+                onClick={handleLogin}
+                type="button"
+                className="w-full rounded-lg px-4 py-3 bg-orange-500 text-white text-xl shadow hover:bg-white hover:text-orange-500 hover:border hover:border-orange-400 transition-all"
+              >
+                Login
+              </button>
+
               <div>
                 <p>
                   Are you a new user?
