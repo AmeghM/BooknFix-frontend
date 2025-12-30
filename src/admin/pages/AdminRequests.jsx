@@ -1,5 +1,5 @@
-import { Check, X } from "lucide-react";
-import React, { useState } from "react";
+import { X } from "lucide-react";
+import React, { useEffect, useState } from "react";
 import AdminHeader from "../components/AdminHeader";
 import AdminSidebar from "../components/AdminSidebar";
 import {
@@ -9,10 +9,63 @@ import {
   FaTimesCircle,
 } from "react-icons/fa";
 import { FaUser } from "react-icons/fa";
-import { FiX, FiXCircle, FiCheckCircle, FiLoader } from "react-icons/fi";
+import { FiXCircle, FiCheckCircle } from "react-icons/fi";
+import {
+  approveWorkerAPI,
+  getPendingWorkersAPI,
+  rejectWorkerAPI,
+} from "../../services/allAPI";
+import SERVER_URL from "../../services/serverURL";
 
 function AdminRequests() {
-  const [showReq, setShowReq] = useState(false);
+  const [showReq, setShowReq] = useState(null);
+  const [pendingWorkers, setPendingWorkers] = useState([]);
+  const [token, setToken] = useState("");
+
+  const getPendingWorkers = async (userToken) => {
+    try {
+      const reqHeader = { Authorization: `Bearer ${userToken}` };
+
+      const result = await getPendingWorkersAPI(reqHeader);
+      console.log(result);
+      setPendingWorkers(result.data);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const handleWorkerApprove = async (id) => {
+    try {
+      const reqHeader = { Authorization: `Bearer ${token}` };
+
+      const result = await approveWorkerAPI(id, reqHeader);
+      console.log(result);
+      setPendingWorkers((prev) => prev.filter((w) => w._id !== id));
+      setShowReq(null);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const handleWorkerReject = async (id) => {
+    try {
+      const reqHeader = { Authorization: `Bearer ${token}` };
+      await rejectWorkerAPI(id, reqHeader);
+      setPendingWorkers((prev) => prev.filter((w) => w._id !== id));
+      setShowReq(null);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  useEffect(() => {
+    const userToken = sessionStorage.getItem("token");
+
+    if (userToken) {
+      setToken(userToken);
+      getPendingWorkers(userToken);
+    }
+  }, []);
   return (
     <>
       <AdminHeader />
@@ -53,49 +106,70 @@ function AdminRequests() {
               {/* Table Body  */}
               <tbody className="divide-y divide-gray-200">
                 {/* ROW  */}
-                <tr className="hover:bg-gray-50 transition">
-                  <td className="px-6 py-4">
-                    <div className="text-sm font-medium text-gray-600">
-                      Jack S
-                    </div>
-                  </td>
-
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    <div className="font-medium">Painter</div>
-                  </td>
-
-                  <td className="px-6 py-4">
-                    <div className="text-sm font-medium text-gray-500">
-                      5 Years
-                    </div>
-                  </td>
-
-                  <td className="px-6 py-4">
-                    <div className="text-sm font-medium text-gray-500">
-                      2024-10-20
-                    </div>
-                  </td>
-
-                  <td className="px-6 py-4 text-center space-y-2">
-                    <div className="text-sm font-medium text-gray-500">
-                      Kaloor,Kochi
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                    <button
-                      onClick={() => setShowReq(!showReq)}
-                      className="text-blue-600 hover:text-blue-900 bg-blue-50 p-2 rounded-lg"
+                {pendingWorkers?.length > 0 ? (
+                  pendingWorkers?.map((worker) => (
+                    <tr
+                      key={worker._id}
+                      className="hover:bg-gray-50 transition"
                     >
-                      <FaEye className="w-4 h-4" />
-                    </button>
-                    <button className="text-green-600 hover:text-green-900 bg-green-50 p-2 rounded-lg">
-                      <FaCheckCircle className="w-4 h-4" />
-                    </button>
-                    <button className="text-red-600 hover:text-red-900 bg-red-50 p-2 rounded-lg">
-                      <FaTimesCircle className="w-4 h-4" />
-                    </button>
-                  </td>
-                </tr>
+                      <td className="px-6 py-4">
+                        <div className="text-sm font-medium text-gray-600">
+                          {worker.fullName}
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4 text-sm text-gray-500">
+                        <div className="font-medium">
+                          {worker.serviceCategory}
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <div className="text-sm font-medium text-gray-500">
+                          {worker.experienceYears} Years
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <div className="text-sm font-medium text-gray-500">
+                          {new Date(worker.createdAt).toLocaleDateString()}
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4 text-center space-y-2">
+                        <div className="text-sm font-medium text-gray-500">
+                          {worker.serviceArea}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                        <button
+                          onClick={() => setShowReq(worker)}
+                          className="text-blue-600 hover:text-blue-900 bg-blue-50 p-2 rounded-lg"
+                        >
+                          <FaEye className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleWorkerApprove(worker._id)}
+                          className="text-green-600 hover:text-green-900 bg-green-50 p-2 rounded-lg"
+                        >
+                          <FaCheckCircle className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleWorkerReject(worker._id)}
+                          className="text-red-600 hover:text-red-900 bg-red-50 p-2 rounded-lg"
+                        >
+                          <FaTimesCircle className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="6" className="text-center py-6 text-gray-500">
+                      No pending worker requests
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -109,7 +183,7 @@ function AdminRequests() {
                       Application Details
                     </h3>
                     <button
-                      onClick={() => setShowReq(!showReq)}
+                      onClick={() => setShowReq(null)}
                       className="text-gray-400 hover:text-gray-600 transition"
                     >
                       <X className="w-6 h-6" />
@@ -119,34 +193,44 @@ function AdminRequests() {
                   <div className="space-y-3 text-gray-700">
                     <div className=" ">
                       <img
-                        src="https://mockmind-api.uifaces.co/content/human/210.jpg"
-                        alt=""
+                        src={`${SERVER_URL}/imguploads/${showReq.profile}`}
+                        alt={showReq.fullName}
                         className="w-25 rounded-full"
                       />
                     </div>
                     <p>
-                      <strong>Name:</strong> Jack S
+                      <strong>Name:</strong> {showReq.fullName}
                     </p>
                     <p>
-                      <strong>Profession:</strong> Painter
+                      <strong>Profession:</strong>
+                      {showReq.serviceCategory}
                     </p>
                     <p>
-                      <strong>Phone:</strong> +91 9807654312
+                      <strong>Phone:</strong> {showReq.mobile}
                     </p>
                     <p>
-                      <strong>Location:</strong> Kaloor, Kochi
+                      <strong>Location:</strong> {showReq.serviceArea}
                     </p>
                     <p>
-                      <strong>Experience:</strong> 5 Years
+                      <strong>Experience:</strong> {showReq.experienceYears}{" "}
+                      Years
                     </p>
                     <p>
-                      <strong>License ID:</strong>
-                      <span className="font-mono bg-gray-100 p-1 rounded">
-                        LIC-A34B9821
-                      </span>
+                      <strong>Min Price:</strong> {showReq.minPrice}
                     </p>
                     <p>
-                      <strong>Submitted On:</strong> 2024-10-20
+                      <strong>Government ID:</strong>
+                      <a
+                        href={`${SERVER_URL}/imguploads/${showReq.govId}`}
+                        target="_blank"
+                        className="text-blue-600 ms-2"
+                      >
+                        View Government ID
+                      </a>
+                    </p>
+                    <p>
+                      <strong>Submitted On:</strong>{" "}
+                      {new Date(showReq.createdAt).toLocaleDateString()}
                     </p>
                     {/* <p>
                       <strong>Current Status:</strong>
@@ -158,11 +242,17 @@ function AdminRequests() {
                 </div>
 
                 <div className="bg-gray-50 p-4 flex justify-end gap-3 border-t">
-                  <button className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition">
+                  <button
+                    onClick={() => handleWorkerReject(showReq._id)}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+                  >
                     <FiXCircle className="w-4 h-4" /> Decline
                   </button>
 
-                  <button className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition">
+                  <button
+                    onClick={() => handleWorkerApprove(showReq._id)}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition"
+                  >
                     <FiCheckCircle className="w-4 h-4" /> Approve
                   </button>
                 </div>

@@ -11,8 +11,89 @@ import {
   FaCreditCard,
   FaIdCard,
 } from "react-icons/fa";
+import { useState } from "react";
+import { useEffect } from "react";
+import {
+  getWorkerProfileAPI,
+  updateWorkerProfileAPI,
+} from "../../services/allAPI";
+import SERVER_URL from "../../services/serverURL";
 
 function WorkerProfile() {
+  const [worker, setWorker] = useState(null);
+  const [workerData, setWorkerData] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    location: "",
+    serviceCategory: "",
+    experienceYears: "",
+    serviceArea: "",
+    profile: "",
+    bio: "",
+    bankName: "",
+    accountNumber: "",
+    ifsc: "",
+  });
+
+  const [token, setToken] = useState("");
+
+  const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => {
+    const workerToken = sessionStorage.getItem("token");
+    if (workerToken) {
+      setToken(workerToken);
+      getWorkerData(workerToken);
+    }
+  }, []);
+
+  const getWorkerData = async (token) => {
+    try {
+      const reqHeader = { Authorization: `Bearer ${token}` };
+
+      const result = await getWorkerProfileAPI(reqHeader);
+      setWorker(result.data);
+      setWorkerData({
+        fullName: result.data.fullName,
+        mobile: result.data.mobile,
+        serviceArea: result.data.serviceArea,
+        experienceYears: result.data.experienceYears,
+        bio: result.data.bio || "",
+        bankName: result.data.bankDetails?.bankName || "",
+        accountNumber: result.data.bankDetails?.accountNumber || "",
+        ifsc: result.data.bankDetails?.ifsc || "",
+      });
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const handleUpdateProfile = async () => {
+    try {
+      const updateData = {
+        fullName: workerData.fullName,
+        mobile: workerData.mobile,
+        serviceArea: workerData.serviceArea,
+        experienceYears: workerData.experienceYears,
+        bio: workerData.bio,
+        bankName: workerData.bankName,
+        accountNumber: workerData.accountNumber,
+        ifsc: workerData.ifsc,
+      };
+
+      const reqHeader = {
+        Authorization: `Bearer ${token}`,
+      };
+      const result = await updateWorkerProfileAPI(updateData, reqHeader);
+
+      setWorker(result.data);
+      setShowModal(false);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
   return (
     <>
       <WorkerHeader />
@@ -24,9 +105,17 @@ function WorkerProfile() {
           <div className="min-h-screen  flex justify-center p-6">
             <div className="w-full max-w-lg bg-white shadow-lg rounded-2xl p-6">
               <div className="flex flex-col items-center">
-                <FaUserCircle className="text-gray-400" size={120} />
-                <h2 className="text-2xl font-bold mt-3">James Sean</h2>
-                <p className="text-orange-600">Electrician</p>
+                {worker?.profile ? (
+                  <img
+                    src={`${SERVER_URL}/imguploads/${worker?.profile}`}
+                    className="w-32 h-32 rounded-full object-cover"
+                  />
+                ) : (
+                  <FaUserCircle size={120} className="text-gray-400" />
+                )}
+
+                <h2 className="text-2xl font-bold mt-3">{worker?.fullName}</h2>
+                <p className="text-orange-600">{worker?.serviceCategory}</p>
               </div>
 
               <div className="mt-6 space-y-4">
@@ -34,7 +123,7 @@ function WorkerProfile() {
                   <FaEnvelope className="text-orange-600 mr-3" />
                   <div>
                     <p className="text-sm text-gray-500">Email</p>
-                    <p className="font-medium">johndoe@gmail.com</p>
+                    <p className="font-medium">{worker?.email}</p>
                   </div>
                 </div>
 
@@ -42,7 +131,7 @@ function WorkerProfile() {
                   <FaPhone className="text-orange-600 mr-3" />
                   <div>
                     <p className="text-sm text-gray-500">Phone</p>
-                    <p className="font-medium">9876543210</p>
+                    <p className="font-medium">{worker?.mobile}</p>
                   </div>
                 </div>
 
@@ -50,7 +139,7 @@ function WorkerProfile() {
                   <FaMapMarkerAlt className="text-orange-600 mr-3" />
                   <div>
                     <p className="text-sm text-gray-500">Location</p>
-                    <p className="font-medium">Chennai, Tamil Nadu</p>
+                    <p className="font-medium">{worker?.serviceArea}</p>
                   </div>
                 </div>
 
@@ -58,7 +147,9 @@ function WorkerProfile() {
                   <FaTools className="text-orange-600 mr-3" />
                   <div>
                     <p className="text-sm text-gray-500">Experience</p>
-                    <p className="font-medium">5 Years</p>
+                    <p className="font-medium">
+                      {worker?.experienceYears} Years
+                    </p>
                   </div>
                 </div>
               </div>
@@ -66,11 +157,7 @@ function WorkerProfile() {
               {/* About Section */}
               <div className="mt-6">
                 <h3 className="font-semibold text-lg mb-2">About</h3>
-                <p className="text-gray-600 leading-relaxed">
-                  Skilled electrician specializing in wiring, appliance
-                  installation, and electrical maintenance. Reliable,
-                  professional, and customer-focused.
-                </p>
+                <p className="text-gray-600 leading-relaxed">{worker?.bio}</p>
               </div>
 
               {/* Bank Details Section */}
@@ -82,7 +169,9 @@ function WorkerProfile() {
                     <FaUniversity className="text-orange-600 mr-3" />
                     <div>
                       <p className="text-sm text-gray-500">Bank Name</p>
-                      <p className="font-medium">State Bank of India</p>
+                      <p className="font-medium">
+                        {worker?.bankDetails?.bankName || "-"}
+                      </p>
                     </div>
                   </div>
 
@@ -90,7 +179,9 @@ function WorkerProfile() {
                     <FaCreditCard className="text-orange-600 mr-3" />
                     <div>
                       <p className="text-sm text-gray-500">Account Number</p>
-                      <p className="font-medium">1234 5678 9123</p>
+                      <p className="font-medium">
+                        {worker?.bankDetails?.accountNumber || "-"}
+                      </p>
                     </div>
                   </div>
 
@@ -98,20 +189,134 @@ function WorkerProfile() {
                     <FaIdCard className="text-orange-600 mr-3" />
                     <div>
                       <p className="text-sm text-gray-500">IFSC Code</p>
-                      <p className="font-medium">SBIN0012340</p>
+                      <p className="font-medium">
+                        {worker?.bankDetails?.ifsc || "-"}
+                      </p>
                     </div>
                   </div>
                 </div>
               </div>
 
               <div className="mt-6 flex justify-center">
-                <button className="bg-orange-600 text-white px-5 py-2 rounded-lg hover:bg-orange-700 transition">
+                <button
+                  onClick={() => setShowModal(true)}
+                  className="bg-orange-600 text-white px-5 py-2 rounded-lg hover:bg-orange-700 transition"
+                >
                   Edit Profile
                 </button>
               </div>
             </div>
           </div>
         </div>
+        {showModal && (
+          <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
+            <div className="bg-white rounded-xl p-6 w-full max-w-md">
+              <h2 className="text-xl font-bold mb-4">Edit Profile</h2>
+
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  placeholder="Full Name"
+                  value={workerData.fullName}
+                  onChange={(e) =>
+                    setWorkerData({ ...workerData, fullName: e.target.value })
+                  }
+                  className="w-full border p-2 rounded"
+                />
+
+                <input
+                  type="text"
+                  placeholder="Mobile"
+                  value={workerData.mobile}
+                  onChange={(e) =>
+                    setWorkerData({ ...workerData, mobile: e.target.value })
+                  }
+                  className="w-full border p-2 rounded"
+                />
+
+                <input
+                  type="text"
+                  placeholder="Service Area"
+                  value={workerData.serviceArea}
+                  onChange={(e) =>
+                    setWorkerData({
+                      ...workerData,
+                      serviceArea: e.target.value,
+                    })
+                  }
+                  className="w-full border p-2 rounded"
+                />
+
+                <textarea
+                  placeholder="Bio"
+                  value={workerData.bio}
+                  onChange={(e) =>
+                    setWorkerData({ ...workerData, bio: e.target.value })
+                  }
+                  className="w-full border p-2 rounded"
+                />
+
+                {/* Bank Details */}
+                <input
+                  type="text"
+                  placeholder="Bank Name"
+                  value={workerData.bankName}
+                  onChange={(e) =>
+                    setWorkerData({ ...workerData, bankName: e.target.value })
+                  }
+                  className="w-full border p-2 rounded"
+                />
+
+                <input
+                  type="text"
+                  placeholder="Account Number"
+                  value={workerData.accountNumber}
+                  onChange={(e) =>
+                    setWorkerData({
+                      ...workerData,
+                      accountNumber: e.target.value,
+                    })
+                  }
+                  className="w-full border p-2 rounded"
+                />
+
+                <input
+                  type="text"
+                  placeholder="IFSC Code"
+                  value={workerData.ifsc}
+                  onChange={(e) =>
+                    setWorkerData({ ...workerData, ifsc: e.target.value })
+                  }
+                  className="w-full border p-2 rounded"
+                />
+
+                {/* <input
+                  type="file"
+                  onChange={(e) =>
+                    setWorkerData({ ...workerData, profile: e.target.files[0] })
+                  }
+                /> */}
+
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowModal(false)}
+                    className="px-4 py-2 border rounded"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleUpdateProfile}
+                    className="px-4 py-2 bg-orange-600 text-white rounded"
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

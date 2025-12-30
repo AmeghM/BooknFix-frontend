@@ -1,7 +1,7 @@
 import { Route, Routes } from "react-router-dom";
 import "./App.css";
 import LandingPage from "./common/pages/LandingPage";
-
+import { ToastContainer } from "react-toastify";
 import { useEffect, useState } from "react";
 import PreLoader from "./common/pages/PreLoader";
 import Auth from "./common/pages/Auth";
@@ -27,6 +27,8 @@ import Payment from "./user/pages/Payment";
 import UserChat from "./user/pages/UserChat";
 import About from "./common/pages/About";
 import WorkerJobs from "./worker/pages/WorkerJobs";
+import PaymentSuccess from "./user/components/PaymentSuccess";
+import PaymentError from "./user/components/PaymentError";
 
 function App() {
   const [loader, setLoader] = useState(true);
@@ -50,13 +52,14 @@ function App() {
         <Route path="/user-profile" element={<UserProfile />} />
         <Route path="/services" element={<Services />} />
         <Route path="/cart" element={<Cart />} />
-        <Route path="/worker" element={<UserWorkerProfile />} />
+        <Route path="/worker/:id" element={<UserWorkerProfile />} />
         <Route path="/booking-form" element={<BookingForm />} />
         <Route path="/request-confirm" element={<RequestConfirm />} />
         <Route path="/my-bookings" element={<Bookings />} />
         <Route path="/payment" element={<Payment />} />
         <Route path="/chat" element={<UserChat />} />
-
+        <Route path="/paymentsuccess" element={<PaymentSuccess />} />
+        <Route path="/paymenterror" element={<PaymentError />} />
         {/* workers */}
         <Route path="/worker-profile" element={<WorkerProfile />} />
         <Route path="/worker-requests" element={<WorkerRequests />} />
@@ -72,6 +75,19 @@ function App() {
         <Route path="/admin-workers" element={<AdminWorkers />} />
         <Route path="/admin-payments" element={<AdminPayment />} />
       </Routes>
+
+      <ToastContainer
+        position="top-center"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick={false}
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover={false}
+        theme="colored"
+      />
     </>
   );
 }

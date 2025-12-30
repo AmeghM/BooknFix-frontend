@@ -1,9 +1,67 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import AdminHeader from "../components/AdminHeader";
 import AdminSidebar from "../components/AdminSidebar";
 import { FaCheckCircle, FaUsers, FaUserTie } from "react-icons/fa";
+import {
+  getAllUsersAPI,
+  getAllWorkersAdminAPI,
+  getPendingWorkersAPI,
+} from "../../services/allAPI";
 
 function AdminHome() {
+  const [allUsers, setAllUsers] = useState([]);
+  const [token, setToken] = useState("");
+  const [allWorkers, setAllWorkers] = useState([]);
+  const [pendingWorkers, setPendingWorkers] = useState([]);
+
+  const getAllUsers = async () => {
+    try {
+      const reqHeader = {
+        Authorization: `Bearer ${token}`,
+      };
+      const result = await getAllUsersAPI(reqHeader);
+      console.log(result);
+      setAllUsers(result.data);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const getAllWorkers = async () => {
+    try {
+      const reqHeader = { Authorization: `Bearer ${token}` };
+      const result = await getAllWorkersAdminAPI(reqHeader);
+      console.log(result);
+      setAllWorkers(result.data);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+  const getPendingWorkers = async () => {
+    try {
+      const reqHeader = { Authorization: `Bearer ${token}` };
+
+      const result = await getPendingWorkersAPI(reqHeader);
+      console.log(result);
+      setPendingWorkers(result.data);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  useEffect(() => {
+    if (sessionStorage.getItem("token")) {
+      setToken(sessionStorage.getItem("token"));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (token) {
+      getAllUsers();
+      getAllWorkers();
+      getPendingWorkers();
+    }
+  }, [token]);
   return (
     <>
       <AdminHeader />
@@ -19,7 +77,9 @@ function AdminHome() {
               </div>
               <div>
                 <p className="text-gray-500 font-medium">Total no.of Users</p>
-                <h3 className="text-2xl font-bold text-gray-800">20</h3>
+                <h3 className="text-2xl font-bold text-gray-800">
+                  {allUsers.length}
+                </h3>
               </div>
             </div>
 
@@ -29,7 +89,9 @@ function AdminHome() {
               </div>
               <div>
                 <p className="text-gray-500 font-medium">Total no.of Workers</p>
-                <h3 className="text-2xl font-bold text-gray-800">10</h3>
+                <h3 className="text-2xl font-bold text-gray-800">
+                  {allWorkers.length}
+                </h3>
               </div>
             </div>
 
@@ -38,8 +100,10 @@ function AdminHome() {
                 <FaCheckCircle className="text-blue-500 w-7 h-7" />
               </div>
               <div>
-                <p className="text-gray-500 font-medium">Works Completed </p>
-                <h3 className="text-2xl font-bold text-gray-800">14</h3>
+                <p className="text-gray-500 font-medium">Pending Workers </p>
+                <h3 className="text-2xl font-bold text-gray-800">
+                  {pendingWorkers.length}
+                </h3>
               </div>
             </div>
           </div>

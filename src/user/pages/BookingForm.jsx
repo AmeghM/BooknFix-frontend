@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   FiCalendar,
   FiMessageSquare,
@@ -6,15 +6,86 @@ import {
   FiUpload,
   FiSend,
 } from "react-icons/fi";
-import { Link } from "react-router-dom";
-
+import { Link, useNavigate } from "react-router-dom";
+import { createBookingAPI } from "../../services/allAPI";
+import { toast } from "react-toastify";
 function BookingForm() {
+  const [token, setToken] = useState("");
+  const [bookingDetails, setBookingDetails] = useState({
+    workerEmail: "",
+    serviceDate: "",
+    timeSlot: "",
+    serviceAddress: "",
+    customerName: "",
+    customerPhone: "",
+    paymentMethod: "Online",
+    description: "",
+    issueImage: "",
+  });
+  const navigate = useNavigate();
+
+  const handleFileChange = (e) => {
+    setBookingDetails({ ...bookingDetails, issueImage: e.target.files[0] });
+  };
+
+  const handleBooking = async () => {
+    const {
+      serviceDate,
+      timeSlot,
+      serviceAddress,
+      customerName,
+      customerPhone,
+      paymentMethod,
+      description,
+    } = bookingDetails;
+
+    if (
+      !serviceDate ||
+      !timeSlot ||
+      !serviceAddress ||
+      !customerName ||
+      !customerPhone ||
+      !paymentMethod ||
+      !description
+    ) {
+      toast.info("Fill the details");
+    } else {
+      const reqHeader = {
+        Authorization: `Bearer ${token}`,
+      };
+      const reqBody = new FormData();
+      for (let key in bookingDetails) {
+        reqBody.append(key, bookingDetails[key]);
+      }
+      try {
+        const result = await createBookingAPI(reqBody, reqHeader);
+        if (result.status == 200) {
+          toast.success("Booking successfull");
+          navigate("/request-confirm");
+        } else {
+          toast.error("something went wrong");
+        }
+      } catch (error) {
+        console.log(error);
+      }
+    }
+  };
+  console.log(bookingDetails);
+
+  useEffect(() => {
+    if (sessionStorage.getItem("token")) {
+      setToken(sessionStorage.getItem("token"));
+    }
+    const workerEmail = sessionStorage.getItem("selectedWorkerEmail");
+    if (workerEmail) {
+      setBookingDetails((prev) => ({ ...prev, workerEmail }));
+    }
+  }, []);
   return (
     <>
       <div className="w-full min-h-screen flex justify-center items-center bg-gray-50 py-10">
         <div className="w-full max-w-4xl px-4">
           <form className="w-full space-y-8">
-            {/* Heading */}
             <div className="text-center">
               <h1 className="text-4xl font-extrabold text-gray-900 mb-2">
                 Service Request Details
@@ -24,7 +95,7 @@ function BookingForm() {
               </p>
             </div>
 
-            {/* 1. Schedule & Location */}
+            {/* Schedule & Location */}
             <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
               <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center">
                 <FiCalendar className="w-6 h-6 mr-2 text-orange-600" />
@@ -38,6 +109,15 @@ function BookingForm() {
                   </label>
                   <input
                     type="date"
+                    name="serviceDate"
+                    min={new Date().toISOString().split("T")[0]}
+                    value={bookingDetails.serviceDate}
+                    onChange={(e) =>
+                      setBookingDetails({
+                        ...bookingDetails,
+                        serviceDate: e.target.value,
+                      })
+                    }
                     className="w-full p-3 border border-gray-300 rounded-lg"
                   />
                 </div>
@@ -48,6 +128,16 @@ function BookingForm() {
                   </label>
                   <input
                     type="time"
+                    name="timeSlot"
+                    min="08:00"
+                    max="20:00"
+                    value={bookingDetails.timeSlot}
+                    onChange={(e) =>
+                      setBookingDetails({
+                        ...bookingDetails,
+                        timeSlot: e.target.value,
+                      })
+                    }
                     className="w-full p-3 border border-gray-300 rounded-lg"
                   />
                 </div>
@@ -58,13 +148,21 @@ function BookingForm() {
                   </label>
                   <input
                     type="text"
+                    name="serviceAddress"
+                    value={bookingDetails.serviceAddress}
+                    onChange={(e) =>
+                      setBookingDetails({
+                        ...bookingDetails,
+                        serviceAddress: e.target.value,
+                      })
+                    }
                     className="w-full p-3 border border-gray-300 rounded-lg"
                   />
                 </div>
               </div>
             </div>
 
-            {/* 2. Contact & Payment */}
+            {/* contact & Payment */}
             <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
               <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center">
                 <FiMessageSquare className="w-6 h-6 mr-2 text-orange-600" />
@@ -78,6 +176,14 @@ function BookingForm() {
                   </label>
                   <input
                     type="text"
+                    name="customerName"
+                    value={bookingDetails.customerName}
+                    onChange={(e) =>
+                      setBookingDetails({
+                        ...bookingDetails,
+                        customerName: e.target.value,
+                      })
+                    }
                     className="w-full p-3 border border-gray-300 rounded-lg"
                   />
                 </div>
@@ -88,6 +194,14 @@ function BookingForm() {
                   </label>
                   <input
                     type="tel"
+                    name="customerPhone"
+                    value={bookingDetails.customerPhone}
+                    onChange={(e) =>
+                      setBookingDetails({
+                        ...bookingDetails,
+                        customerPhone: e.target.value,
+                      })
+                    }
                     className="w-full p-3 border border-gray-300 rounded-lg"
                   />
                 </div>
@@ -96,20 +210,24 @@ function BookingForm() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Preferred Payment Method
                   </label>
-                  <select className="w-full p-3 border border-gray-300 rounded-lg bg-white">
+                  <select
+                    name="paymentMethod"
+                    value={bookingDetails.paymentMethod}
+                    onChange={(e) =>
+                      setBookingDetails({
+                        ...bookingDetails,
+                        paymentMethod: e.target.value,
+                      })
+                    }
+                    className="w-full p-3 border border-gray-300 rounded-lg bg-white"
+                  >
                     <option>Online</option>
-                    <option>Cash</option>
                   </select>
-
-                  <p className="text-xs text-gray-500 mt-1">
-                    You selected Cash in Hand. Pay the worker directly after the
-                    service.
-                  </p>
                 </div>
               </div>
             </div>
 
-            {/* 3. Description */}
+            {/*  description */}
             <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
               <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center">
                 <FiAlertTriangle className="w-6 h-6 mr-2 text-orange-600" />
@@ -122,10 +240,18 @@ function BookingForm() {
 
               <textarea
                 rows="4"
+                name="description"
+                value={bookingDetails.description}
+                onChange={(e) =>
+                  setBookingDetails({
+                    ...bookingDetails,
+                    description: e.target.value,
+                  })
+                }
                 className="w-full p-3 border border-gray-300 rounded-lg resize-none"
               />
 
-              {/* Upload */}
+              {/* upload */}
               <div className="mt-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Upload Picture{" "}
@@ -135,6 +261,7 @@ function BookingForm() {
                 <input
                   type="file"
                   accept="image/*"
+                  onChange={handleFileChange}
                   className="block w-full text-sm text-gray-700 
               file:mr-4 file:py-2 file:px-4
               file:rounded-lg file:border-0
@@ -146,14 +273,14 @@ function BookingForm() {
             </div>
 
             {/*Button */}
-            <Link to={"/request-confirm"}>
-              <button
-                type="button"
-                className="w-full px-6 py-4 text-xl font-bold rounded-xl shadow-lg text-white bg-orange-600 hover:bg-orange-700"
-              >
-                Send Booking Request to Alex Johnson
-              </button>
-            </Link>
+
+            <button
+              type="button"
+              onClick={handleBooking}
+              className="w-full px-6 py-4 text-xl font-bold rounded-xl shadow-lg text-white bg-orange-600 hover:bg-orange-700"
+            >
+              Send Booking Request to Alex Johnson
+            </button>
           </form>
         </div>
       </div>

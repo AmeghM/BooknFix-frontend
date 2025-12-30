@@ -16,16 +16,16 @@ function RequestConfirm() {
             </h1>
 
             <p className="text-xl text-gray-600 mb-6">
-              Your service request has been sent to{" "}
-              <span>James Sean( Electrician)</span>.
+              Your service request has been sent to <span>selected worker</span>
+              .
             </p>
 
             <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
               <p className="text-base text-gray-800 font-medium">
                 Please check your
                 <span className="font-bold text-orange-600"> My Bookings </span>
-                page or your email for status updates. James usually responds
-                within 1–2 hours.
+                page or your email for status updates. Usually responds within
+                1–2 hours.
               </p>
             </div>
 

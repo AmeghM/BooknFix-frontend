@@ -41,7 +41,7 @@ function LandingPage() {
           </p>
 
           {/*  Search Bar */}
-          <div className="mt-8 flex justify-center">
+          {/* <div className="mt-8 flex justify-center">
             <div className="flex w-full max-w-xl bg-white p-2 rounded-xl shadow-2xl">
               <input
                 type="text"
@@ -53,7 +53,7 @@ function LandingPage() {
                 Search
               </button>
             </div>
-          </div>
+          </div> */}
 
           <div className="mt-5">
             <p className="text-sm  text-white">
@@ -126,7 +126,7 @@ function LandingPage() {
 
           <div className="mt-16 text-center">
             <a
-              href="#"
+              href="/login"
               className="inline-flex items-center justify-center px-8 py-3 border border-transparent text-lg font-medium rounded-full shadow-lg text-white bg-orange-600 hover:bg-orange-700 transition duration-300 transform hover:scale-[1.05]"
             >
               Get Started Now

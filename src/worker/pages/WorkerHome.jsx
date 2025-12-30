@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import WorkerHeader from "../components/WorkerHeader";
 import WorkerSidebar from "../components/WorkerSidebar";
 import {
@@ -8,8 +8,63 @@ import {
   FaChartLine,
   FaBriefcase,
 } from "react-icons/fa";
+import {
+  getAllAcceptedBookingsAPI,
+  getWorkerBookingsAPI,
+  workerDashboardAPI,
+} from "../../services/allAPI";
 
 function WorkerHome() {
+  const [token, setToken] = useState("");
+  const [jobReq, setJobReq] = useState([]);
+  const [acceptedJobs, setAcceptedJobs] = useState([]);
+  const [dash, setDash] = useState(null);
+
+  const getAllJobRequests = async () => {
+    const reqHeader = { Authorization: `Bearer ${token}` };
+
+    try {
+      const result = await getWorkerBookingsAPI(reqHeader);
+      setJobReq(result.data);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const getAllAcceptedJobs = async () => {
+    const reqHeader = { Authorization: `Bearer ${token}` };
+
+    try {
+      const result = await getAllAcceptedBookingsAPI(reqHeader);
+      setAcceptedJobs(result.data);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const getDashData = async () => {
+    const reqHeader = { Authorization: `Bearer ${token}` };
+    try {
+      const result = await workerDashboardAPI(reqHeader);
+      setDash(result.data);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  useEffect(() => {
+    if (sessionStorage.getItem("token")) {
+      setToken(sessionStorage.getItem("token"));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (token) {
+      getAllJobRequests();
+      getAllAcceptedJobs();
+      getDashData();
+    }
+  }, [token]);
   return (
     <>
       <WorkerHeader />
@@ -34,7 +89,9 @@ function WorkerHome() {
                   <p className="text-gray-500 font-medium">
                     Total Earnings (Paid)
                   </p>
-                  <h3 className="text-2xl font-bold text-gray-800">₹45,230</h3>
+                  <h3 className="text-2xl font-bold text-gray-800">
+                    ₹ {dash?.totalEarnings || 0}
+                  </h3>
                 </div>
               </div>
 
@@ -45,7 +102,9 @@ function WorkerHome() {
                 </div>
                 <div>
                   <p className="text-gray-500 font-medium">Completed Jobs</p>
-                  <h3 className="text-2xl font-bold text-gray-800">10</h3>
+                  <h3 className="text-2xl font-bold text-gray-800">
+                    {dash?.completedJobs || 0}
+                  </h3>
                 </div>
               </div>
 
@@ -56,7 +115,9 @@ function WorkerHome() {
                 </div>
                 <div>
                   <p className="text-gray-500 font-medium">New Job Requests</p>
-                  <h3 className="text-2xl font-bold text-gray-800">2</h3>
+                  <h3 className="text-2xl font-bold text-gray-800">
+                    {jobReq.length}
+                  </h3>
                 </div>
               </div>
             </div>
@@ -76,13 +137,17 @@ function WorkerHome() {
                 <ul className="space-y-4">
                   <li className="flex justify-between items-center p-4 bg-gray-50 rounded-xl border hover:bg-gray-100 transition">
                     <span className="font-medium text-gray-700">Ongoing</span>
-                    <span className="text-xl font-bold text-orange-600">2</span>
+                    <span className="text-xl font-bold text-orange-600">
+                      {dash?.ongoingJobs || 0}
+                    </span>
                   </li>
 
-                  <li className="flex justify-between items-center p-4 bg-gray-50 rounded-xl border hover:bg-gray-100 transition">
+                  {/* <li className="flex justify-between items-center p-4 bg-gray-50 rounded-xl border hover:bg-gray-100 transition">
                     <span className="font-medium text-gray-700">Accepted</span>
-                    <span className="text-xl font-bold text-orange-600">1</span>
-                  </li>
+                    <span className="text-xl font-bold text-orange-600">
+                      {acceptedJobs.length}
+                    </span>
+                  </li> */}
                 </ul>
               </div>
             </div>

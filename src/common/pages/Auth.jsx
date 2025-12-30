@@ -3,6 +3,7 @@ import "../../../src/index.css";
 import { Link, useNavigate } from "react-router-dom";
 import { FaRegEye, FaRegEyeSlash } from "react-icons/fa";
 import { loginAPI, registerAPI } from "../../services/allAPI";
+import { toast } from "react-toastify";
 
 function Auth({ register }) {
   const [showPassword, setShowPassword] = useState(false);
@@ -23,7 +24,7 @@ function Auth({ register }) {
       const result = await registerAPI(userDetails);
       console.log(result);
       if (result.status == 200) {
-        alert("Registered Successfully");
+        toast.success("Registered Successfully");
         setUserDetails({
           username: "",
           email: "",
@@ -32,7 +33,7 @@ function Auth({ register }) {
         });
         navigate("/login");
       } else if (result.status == 404) {
-        alert(result.response.data);
+        toast.warning(result.response.data);
         setUserDetails({
           username: "",
           email: "",
@@ -40,7 +41,7 @@ function Auth({ register }) {
           password: "",
         });
       } else {
-        alert("Somethin went wrong");
+        toast.error("Something went wrong");
         setUserDetails({
           username: "",
           email: "",
@@ -55,22 +56,31 @@ function Auth({ register }) {
     const { email, password } = userDetails;
 
     if (!email || !password) {
-      alert("Fill all the fields!!");
+      toast.info("Fill the fields");
     } else {
       try {
         const result = await loginAPI(userDetails);
         console.log(result);
         if (result.status == 200) {
-          alert("Login Successfull");
+          sessionStorage.setItem(
+            "existingUser",
+            JSON.stringify(result.data.existingUser)
+          );
+          sessionStorage.setItem("token", result.data.token);
+          toast.success("Login Successfull");
+          if (result.data.existingUser.role == "admin") {
+            navigate("/admin-home");
+          } else {
+            navigate("/");
+          }
           setUserDetails({
             username: "",
             email: "",
             phone: "",
             password: "",
           });
-          navigate("/");
         } else if (result.status == 404) {
-          alert(result.response.data);
+          toast.warning(result.response.data);
           setUserDetails({
             username: "",
             email: "",
@@ -78,9 +88,9 @@ function Auth({ register }) {
             password: "",
           });
         } else if (result.status == 401) {
-          alert(result.response.data);
+          toast.warning(result.response.data);
         } else {
-          alert("Something went wrong");
+          toast.error("Something went wrong");
           setUserDetails({
             username: "",
             email: "",

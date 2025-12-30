@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import WorkerHeader from "../components/WorkerHeader";
 import WorkerSidebar from "../components/WorkerSidebar";
@@ -10,10 +10,146 @@ import {
   FaPlus,
   FaComments,
 } from "react-icons/fa";
+import {
+  getAllAcceptedBookingsAPI,
+  updateJobsAPI,
+} from "../../services/allAPI";
+import { toast } from "react-toastify";
+
+import socket from "../../services/socket";
+import { useRef } from "react";
+import SERVER_URL from "../../services/serverURL";
 
 function WorkerJobs() {
   const [showChat, setShowChat] = useState(false);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [token, setToken] = useState("");
+  const [allJobs, setAllJobs] = useState([]);
+  const [selectedJob, setSelectedJob] = useState(null);
+  const [workStatus, setWorkStatus] = useState(
+    selectedJob?.workStatus || "scheduled"
+  );
+  const [extraAmount, setExtraAmount] = useState(
+    selectedJob?.extraCharges?.amount || 0
+  );
+  const [extraReason, setExtraReason] = useState(
+    selectedJob?.extraCharges?.reason || ""
+  );
+  const [beforeImage, setBeforeImage] = useState(null);
+  const [afterImage, setAfterImage] = useState(null);
+
+  const [activeTab, setActiveTab] = useState("active");
+  const activeJobs = allJobs.filter((job) => job.workStatus !== "completed");
+
+  const completedJobs = allJobs.filter((job) => job.workStatus === "completed");
+
+  const displayedJobs = activeTab === "active" ? activeJobs : completedJobs;
+  const getWorkerJobs = async (workertoken) => {
+    const reqHeader = { Authorization: `Bearer ${workertoken}` };
+
+    try {
+      const result = await getAllAcceptedBookingsAPI(reqHeader);
+      setAllJobs(result.data);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  console.log(allJobs);
+
+  const handleUpdateJob = async () => {
+    if (workStatus == "completed" && (!beforeImage || !afterImage)) {
+      toast.warning("Please upload both before and after images");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("workStatus", workStatus);
+    formData.append("extraCharges", extraAmount);
+    formData.append("extraReason", extraReason);
+    formData.append(
+      "finalAmount",
+      Number(selectedJob.price) + Number(extraAmount)
+    );
+
+    if (beforeImage) formData.append("before", beforeImage);
+    if (afterImage) formData.append("after", afterImage);
+
+    const reqHeader = {
+      Authorization: `Bearer ${token}`,
+    };
+
+    try {
+      const result = await updateJobsAPI(selectedJob._id, formData, reqHeader);
+
+      getWorkerJobs(token);
+
+      setShowUpdateModal(false);
+      setSelectedJob(null);
+      setBeforeImage(null);
+      setAfterImage(null);
+      toast.success("Job updated successfully");
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const [chatMessages, setChatMessages] = useState([]);
+  const [newChatMessage, setNewChatMessage] = useState("");
+  const chatEndRef = useRef(null);
+
+  useEffect(() => {
+    const workerToken = sessionStorage.getItem("token");
+    if (workerToken) {
+      setToken(workerToken);
+      getWorkerJobs(workerToken);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedJob) {
+      socket.emit("joinRoom", selectedJob._id);
+
+      const fetchChatMessages = async () => {
+        try {
+          const res = await fetch(`${SERVER_URL}/api/chat/${selectedJob._id}`);
+          const data = await res.json();
+          setChatMessages(data);
+        } catch (err) {
+          console.error("Failed to fetch chat messages", err);
+        }
+      };
+      fetchChatMessages();
+    }
+  }, [selectedJob]);
+  useEffect(() => {
+    socket.on("receiveMessage", (msg) => {
+      if (selectedJob && msg.bookingId === selectedJob._id) {
+        setChatMessages((prev) => [...prev, msg]);
+      }
+    });
+
+    return () => socket.off("receiveMessage");
+  }, [selectedJob]);
+
+  const handleSendMessage = () => {
+    if (!newChatMessage.trim() || !selectedJob) return;
+
+    const msgData = {
+      bookingId: selectedJob._id,
+      senderRole: "worker",
+      senderEmail: token,
+      message: newChatMessage,
+    };
+
+    socket.emit("sendMessage", msgData);
+    setNewChatMessage("");
+  };
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [chatMessages]);
 
   return (
     <>
@@ -33,6 +169,30 @@ function WorkerJobs() {
               Update work progress, add material charges, and finalize completed
               jobs.
             </p>
+            {/* Tabs */}
+            <div className="flex gap-4 mb-6">
+              <button
+                onClick={() => setActiveTab("active")}
+                className={`px-6 py-2 rounded-full font-semibold text-sm transition ${
+                  activeTab === "active"
+                    ? "bg-orange-600 text-white shadow"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                Active Jobs ({activeJobs.length})
+              </button>
+
+              <button
+                onClick={() => setActiveTab("completed")}
+                className={`px-6 py-2 rounded-full font-semibold text-sm transition ${
+                  activeTab === "completed"
+                    ? "bg-green-600 text-white shadow"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                Completed Jobs ({completedJobs.length})
+              </button>
+            </div>
 
             {/* Table */}
             <div className="overflow-x-auto bg-white rounded-xl shadow-lg border border-gray-200">
@@ -40,7 +200,7 @@ function WorkerJobs() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
-                      Customer / Job ID
+                      Customer
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
                       Schedule / Location
@@ -60,64 +220,110 @@ function WorkerJobs() {
                 {/* Table Body  */}
                 <tbody className="divide-y divide-gray-200">
                   {/* ROW  */}
-                  <tr className="hover:bg-gray-50 transition">
-                    <td className="px-6 py-4">
-                      <div className="text-sm font-semibold text-gray-900">
-                        Karthik K
-                      </div>
-                      <div className="text-xs text-orange-600">
-                        Electrical Repair
-                      </div>
-                    </td>
+                  {allJobs?.length > 0 ? (
+                    displayedJobs?.map((job) => (
+                      <tr key={job._id} className="hover:bg-gray-50 transition">
+                        <td className="px-6 py-4">
+                          <div className="text-sm font-semibold text-gray-900">
+                            {job?.customerName}
+                          </div>
+                          <div className="text-xs text-orange-600">
+                            {job?.description}
+                          </div>
+                        </td>
 
-                    <td className="px-6 py-4 text-sm text-gray-700">
-                      <div className="font-medium">12 Feb 2025</div>
-                      <div>11:00AM</div>
-                      <div className="text-xs text-gray-500 flex items-center">
-                        <FaMapMarkerAlt className="w-3 h-3 mr-1" /> Kakkanad,
-                        Kochi
-                      </div>
-                    </td>
+                        <td className="px-6 py-4 text-sm text-gray-700">
+                          <div className="font-medium">
+                            {new Date(job.serviceDate).toDateString()}
+                          </div>
+                          <div>{job?.timeSlot}</div>
+                          <div className="text-xs text-gray-500 flex items-center">
+                            <FaMapMarkerAlt className="w-3 h-3 mr-1" />{" "}
+                            {job?.serviceAddress}
+                          </div>
+                        </td>
 
-                    <td className="px-6 py-4">
-                      <span className="px-3 py-1 text-xs font-semibold rounded-full border bg-blue-100 text-blue-800 border-blue-400">
-                        Scheduled
-                      </span>
-                    </td>
+                        <td className="px-6 py-4">
+                          <span
+                            className={`px-3 py-1 text-xs font-semibold rounded-full border ${
+                              job?.workStatus == "completed"
+                                ? "bg-green-100 text-green-800 border-green-400"
+                                : "bg-blue-100 text-blue-800 border-blue-400"
+                            } `}
+                          >
+                            {job?.workStatus}
+                          </span>
+                        </td>
 
-                    <td className="px-6 py-4">
-                      <div className="text-sm font-bold text-gray-900">
-                        ₹ 300.00
-                      </div>
-                      <div className="text-xs font-medium text-red-600">
-                        (Awaiting Payment)
-                      </div>
-                    </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm font-bold text-gray-900">
+                            ₹ {job?.finalAmount || job.price}
+                          </div>
+                          {job?.paymentStatus !== "Paid" && (
+                            <div className="text-xs font-medium text-red-600">
+                              (Awaiting Payment)
+                            </div>
+                          )}
+                        </td>
 
-                    <td className="px-6 py-4 text-center space-y-2">
-                      <button
-                        onClick={() => setShowUpdateModal(!showUpdateModal)}
-                        className="px-4 py-2 text-xs font-semibold rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-md flex items-center mx-auto"
+                        <td className="px-6 py-4 text-center space-y-2">
+                          {job.workStatus !== "completed" ? (
+                            <>
+                              <button
+                                onClick={() => {
+                                  setSelectedJob(job);
+                                  setWorkStatus(job.workStatus);
+                                  setExtraAmount(job.extraCharges?.amount || 0);
+                                  setExtraReason(
+                                    job.extraCharges?.reason || ""
+                                  );
+                                  setBeforeImage(null);
+                                  setAfterImage(null);
+                                  setShowUpdateModal(true);
+                                }}
+                                className="px-4 py-2 text-xs font-semibold rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-md flex items-center mx-auto"
+                              >
+                                <FaPlus className="w-4 h-4 mr-1" /> Update Job
+                              </button>
+
+                              <button
+                                onClick={() => {
+                                  setSelectedJob(job);
+                                  setShowChat(true);
+                                }}
+                                className="px-6 py-2 text-xs font-semibold rounded-lg text-blue-600 bg-blue-100 hover:bg-blue-200 transition shadow-md flex items-center justify-center  mx-auto"
+                              >
+                                <FaComments className="w-4 h-4 mr-1" /> Chat
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-xs text-gray-400 font-medium">
+                              Job Completed
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="text-center py-6 text-gray-500"
                       >
-                        <FaPlus className="w-4 h-4 mr-1" /> Update Job
-                      </button>
-
-                      <button
-                        onClick={() => setShowChat(!showChat)}
-                        className="px-6 py-2 text-xs font-semibold rounded-lg text-blue-600 bg-blue-100 hover:bg-blue-200 transition shadow-md flex items-center justify-center  mx-auto"
-                      >
-                        <FaComments className="w-4 h-4 mr-1" /> Chat
-                      </button>
-                    </td>
-                  </tr>
+                        {activeTab === "active"
+                          ? "No active jobs"
+                          : "No completed jobs yet"}
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
 
             {/* chat */}
-            {showChat && (
+            {showChat && selectedJob && (
               <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-                <div className="bg-white w-full max-w-md rounded-2xl shadow-xl flex flex-col overflow-hidden">
+                <div className="bg-white w-full max-w-md h-[70vh] rounded-2xl shadow-xl flex flex-col overflow-hidden">
                   <div className="flex items-center justify-between px-4 py-3 border-b">
                     <div className="flex items-center space-x-3">
                       <img
@@ -126,7 +332,7 @@ function WorkerJobs() {
                       />
                       <div>
                         <p className="text-sm font-semibold text-gray-800">
-                          Karthik K
+                          {selectedJob.customerName}
                         </p>
                       </div>
                     </div>
@@ -140,30 +346,41 @@ function WorkerJobs() {
                   </div>
 
                   <div className="flex-1 p-4 space-y-4 overflow-y-auto bg-gray-50">
-                    <div className="flex items-start space-x-3">
-                      <img
-                        src="https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_640.png"
-                        className="w-8 h-8 rounded-full"
-                      />
-                      <div className="bg-white border p-3 rounded-xl shadow-sm text-sm text-gray-700">
-                        When will you arrive
+                    {chatMessages.map((m, idx) => (
+                      <div
+                        key={idx}
+                        className={`flex ${
+                          m.senderRole === "worker"
+                            ? "justify-end"
+                            : "justify-start"
+                        }`}
+                      >
+                        <div
+                          className={`p-3 rounded-xl text-sm shadow max-w-[70%] ${
+                            m.senderRole === "worker"
+                              ? "bg-orange-500 text-white"
+                              : "bg-white text-gray-700 border"
+                          }`}
+                        >
+                          {m.message}
+                        </div>
                       </div>
-                    </div>
-
-                    <div className="flex justify-end">
-                      <div className="bg-orange-500 text-white p-3 rounded-xl text-sm max-w-[70%] shadow">
-                        I will arrive shortly
-                      </div>
-                    </div>
+                    ))}
+                    <div ref={chatEndRef} />
                   </div>
 
                   <div className="p-3 border-t bg-white flex items-center space-x-2">
                     <input
                       type="text"
                       placeholder="Type a message..."
+                      value={newChatMessage}
+                      onChange={(e) => setNewChatMessage(e.target.value)}
                       className="flex-1 border rounded-full px-4 py-2 text-sm focus:outline-none focus:border-orange-500"
                     />
-                    <button className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-full text-sm shadow">
+                    <button
+                      onClick={handleSendMessage}
+                      className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-full text-sm shadow"
+                    >
                       Send
                     </button>
                   </div>
@@ -176,7 +393,8 @@ function WorkerJobs() {
               <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
                 <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl shadow-2xl p-6">
                   <h3 className="text-2xl font-bold text-orange-600 mb-6">
-                    Update Job: James Sean (Electrical Repair)
+                    Update Job: {selectedJob?.customerName}(
+                    {selectedJob?.description})
                   </h3>
 
                   {/* STATUS UPDATE */}
@@ -185,13 +403,16 @@ function WorkerJobs() {
                       Update Work Progress Status
                     </label>
 
-                    <select className="w-full rounded-lg border-blue-300 shadow-sm p-3 focus:border-blue-500 focus:ring-blue-500">
-                      <option>Scheduled</option>
-                      <option>On the Way</option>
-                      <option>Arrived</option>
-                      <option>Work in Progress</option>
-
-                      <option>Completed</option>
+                    <select
+                      value={workStatus}
+                      onChange={(e) => setWorkStatus(e.target.value)}
+                      className="w-full rounded-lg border-blue-300 shadow-sm p-3 focus:border-blue-500 focus:ring-blue-500"
+                    >
+                      <option>scheduled</option>
+                      <option>on the way</option>
+                      <option>arrived</option>
+                      <option>work in progress</option>
+                      <option>completed</option>
                     </select>
 
                     <p className="text-xs text-blue-600 mt-2 font-medium">
@@ -214,7 +435,9 @@ function WorkerJobs() {
                         </label>
                         <input
                           type="text"
-                          value="₹300.00"
+                          value={`₹${
+                            selectedJob?.finalAmount || selectedJob?.price
+                          }`}
                           disabled
                           className="w-full rounded-lg border-gray-300 bg-gray-100 p-3 text-sm font-semibold"
                         />
@@ -226,7 +449,8 @@ function WorkerJobs() {
                         </label>
                         <input
                           type="number"
-                          placeholder="0"
+                          value={extraAmount}
+                          onChange={(e) => setExtraAmount(e.target.value)}
                           className="w-full rounded-lg border-orange-300 shadow-sm p-3 focus:border-orange-500 focus:ring-orange-500 text-sm font-semibold"
                         />
                       </div>
@@ -239,6 +463,8 @@ function WorkerJobs() {
                       <input
                         type="text"
                         placeholder="e.g., Replaced faulty capacitor."
+                        value={extraReason}
+                        onChange={(e) => setExtraReason(e.target.value)}
                         className="w-full rounded-lg border-orange-300 shadow-sm p-3 focus:border-orange-500 focus:ring-orange-500 text-sm"
                       />
                     </div>
@@ -254,7 +480,11 @@ function WorkerJobs() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {/* BEFORE PHOTO */}
                       <label className="border-2 border-dashed border-green-300 rounded-lg p-4 text-center cursor-pointer hover:bg-green-100 block">
-                        <input type="file" className="hidden" />
+                        <input
+                          type="file"
+                          onChange={(e) => setBeforeImage(e.target.files[0])}
+                          className="hidden"
+                        />
                         <p className="text-green-600 text-sm">
                           Click to select photo
                         </p>
@@ -262,7 +492,11 @@ function WorkerJobs() {
 
                       {/* AFTER PHOTO */}
                       <label className="border-2 border-dashed border-green-300 rounded-lg p-4 text-center cursor-pointer hover:bg-green-100 block">
-                        <input type="file" className="hidden" />
+                        <input
+                          type="file"
+                          onChange={(e) => setAfterImage(e.target.files[0])}
+                          className="hidden"
+                        />
                         <p className="text-green-600 text-sm">
                           Click to select photo
                         </p>
@@ -280,7 +514,7 @@ function WorkerJobs() {
                     </button>
 
                     <button
-                      onClick={() => setShowUpdateModal(!showUpdateModal)}
+                      onClick={handleUpdateJob}
                       className="px-6 py-2 text-base font-medium rounded-lg text-white bg-orange-600 hover:bg-orange-700 transition shadow-lg flex items-center"
                     >
                       <FaPaperPlane className="w-5 h-5 mr-2" />
